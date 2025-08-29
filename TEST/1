@@ -1,0 +1,23 @@
+#transformation--Add a column temp_status:
+
+
+# "HOT" if temperature > 35
+
+
+# "COLD" if temperature < 10
+
+
+# "NORMAL" otherwise
+import pandas as pd
+df = pd.read_csv('data.csv')
+def temp_status(temp):
+    if temp > 35:
+        return 'HOT'
+    elif temp < 10:
+        return 'COLD'
+    else:
+        return 'NORMAL'
+
+df['temp_status'] = df['temperature'].apply(temp_status)
+print("=== Cleaned and Transformed Data ===")
+print(df)
