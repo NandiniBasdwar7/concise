@@ -1,0 +1,98 @@
+CREATE TABLE PRODUCT (
+    product_id   Int32,            -- unique identifier for product
+    name         String,           -- product name
+    category     String            -- product category (e.g., "Electronics", "Clothing")
+) ENGINE = MergeTree()
+ORDER BY product_id;
+
+CREATE TABLE STORE(
+    store_id   Int32,              -- unique identifier for store
+    region     String,             -- region name (e.g., "Western Europe")
+    country    String              -- country name (e.g., "Germany", "France")
+) ENGINE = MergeTree()
+ORDER BY store_id;
+
+CREATE TABLE SALES (
+    sale_id     Int64,             -- unique sale transaction id
+    product_id  Int32,             -- foreign key → products.product_id
+    store_id    Int32,             -- foreign key → stores.store_id
+    sale_date   Date,              -- date of sale
+    quantity    Int32,             -- number of units sold
+    unit_price  Float64            -- price per unit at sale time
+) ENGINE = MergeTree()
+PARTITION BY toYYYYMM(sale_date)
+ORDER BY (sale_date, store_id, product_id);
+
+
+INSERT INTO PRODUCT (product_id, name, category) VALUES
+(1, 'iPhone 14', 'Electronics'),
+(2, 'Galaxy S23', 'Electronics'),
+(3, 'Nike Shoes', 'Fashion'),
+(4, 'Levi’s Jeans', 'Fashion'),
+(5, 'Sofa', 'Furniture');
+
+
+INSERT INTO STORE (store_id, region, country) VALUES
+(101, 'Western Europe', 'Germany'),
+(102, 'Western Europe', 'Germany'),
+(103, 'Western Europe', 'France');
+
+INSERT INTO SALES (sale_id, product_id, store_id, sale_date, quantity, unit_price) VALUES
+(1001, 1, 101, '2023-07-05', 5, 999),
+(1002, 2, 102, '2023-07-10', 3, 899),
+(1003, 3, 101, '2023-07-12', 10, 120),
+(1004, 4, 101, '2023-07-15', 6, 80),
+(1005, 5, 102, '2023-07-20', 2, 500),
+(1006, 1, 103, '2023-07-22', 4, 999),
+(1007, 3, 102, '2023-07-25', 8, 120);
+
+WITH enriched_sales AS (
+    SELECT
+        s.sale_date,
+        st.region,
+        st.country AS country,           -- Make sure to include this alias
+        p.category,
+        p.name AS product_name,
+        s.quantity,
+        s.unit_price,
+        s.quantity * s.unit_price AS total_revenue,
+        w.temperature AS avg_temp,
+        CASE
+            WHEN s.quantity < 10 THEN 'Low'
+            WHEN s.quantity >= 10 AND s.quantity < 100 THEN 'Medium'
+            ELSE 'High'
+        END AS sales_bucket
+    FROM sales s
+    JOIN products p ON s.product_id = p.product_id
+    JOIN stores st ON s.store_id = st.store_id
+    JOIN weather w ON s.sale_date = w.date AND st.country = w.country
+    WHERE s.sale_date BETWEEN '2023-07-01' AND '2023-07-31'
+      AND w.temperature > 20
+),
+country_revenue AS (
+    SELECT
+        country,
+        SUM(total_revenue) AS total_revenue_country
+    FROM enriched_sales
+    GROUP BY country
+),
+qualified_sales AS (
+    SELECT
+        es.*
+    FROM enriched_sales es
+    JOIN country_revenue cr ON es.country = cr.country
+    WHERE es.total_revenue > 0.1 * cr.total_revenue_country
+)
+
+SELECT
+    region,
+    country,
+    sale_date,
+    category,
+    product_name,
+    ROUND(total_revenue, 2) AS total_revenue,
+    ROUND(avg_temp, 1) AS avg_temp,
+    sales_bucket
+FROM qualified_sales
+ORDER BY region, sale_date;
+
