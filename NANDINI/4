@@ -1,0 +1,16 @@
+# Analyze data
+# Find the average temperature per truck.
+# Find the truck with the lowest average fuel.
+# Count moving hours per truck (motion = 1).
+
+import pandas as pd
+df = pd.read_csv('data.csv')
+
+avg_temp_per_truck = df.groupby('truck_id')['temperature'].mean()
+print("\n=== Average Temperature per Truck ===")
+print(avg_temp_per_truck)
+
+lowest_avg_temp_truck = avg_temp_per_truck.idxmin()
+
+
+print(f"\n Truck with lowest average temperature: Truck ID {lowest_avg_temp_truck}")
