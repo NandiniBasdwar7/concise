@@ -1,0 +1,6 @@
+#Clean data
+import pandas as pd
+df = pd.read_csv('data.csv')
+df['temperature'] = df['temperature'].apply(lambda x: max(x, 0)) 
+
+df['fuel_alert'] = df['fuel_level'].apply(lambda x: 'LOW' if x < 25 else 'OK')
